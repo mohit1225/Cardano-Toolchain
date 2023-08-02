@@ -1,0 +1,33 @@
+# Start with Ubuntu as the base image
+FROM ubuntu:latest as builder
+
+# Install necessary dependencies
+RUN apt-get update -y \
+    && apt-get install -y build-essential pkg-config libffi-dev libgmp-dev libssl-dev libtinfo-dev libsystemd-dev \
+       zlib1g-dev make g++ tmux git jq wget libncursesw5 libtool autoconf
+
+# Install GHC and Cabal
+RUN apt-get install -y ghc cabal-install
+
+# Clone and build libsodium
+RUN git clone https://github.com/input-output-hk/libsodium \
+    && cd libsodium \
+    && git checkout 66f017f1 \
+    && ./autogen.sh \
+    && ./configure \
+    && make \
+    && make install
+
+# Clone Cardano Node Repository
+RUN git clone https://github.com/input-output-hk/cardano-node.git \
+    && cd cardano-node \
+    && git fetch --all --recurse-submodules --tags \
+
+# Build Cardano Node and CLI
+RUN cd cardano-node \
+    && cabal configure -O0 -w ghc-8.10.4 \
+    && cabal build cardano-cli cardano-node
+
+# Copy Executables to a common location
+RUN cp /path/to/your/build/cardano-cli /usr/local/bin \
+    && cp /path/to/your/build/cardano-node /usr/local/bin
