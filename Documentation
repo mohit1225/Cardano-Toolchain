@@ -1,0 +1,52 @@
+Specify Base Image
+
+FROM ubuntu:latest as builder
+We use FROM to specify our base image, in this case, the latest version of Ubuntu. The as builder syntax is used to name the build stage, which can be useful in multi-stage builds.
+Install System Dependencies
+
+
+
+RUN apt-get update -y \
+    && apt-get install -y build-essential pkg-config libffi-dev libgmp-dev libssl-dev libtinfo-dev libsystemd-dev \
+       zlib1g-dev make g++ tmux git jq wget libncursesw5 libtool autoconf
+We use the RUN instruction to execute commands. Here we update the package lists for upgrades and new package installations, then install all the necessary system dependencies for building Cardano and its components.
+Install Haskell's GHC and Cabal
+
+
+RUN apt-get install -y ghc cabal-install
+Here we install the Glasgow Haskell Compiler (GHC) and Cabal, a build tool for Haskell, since Cardano's source code is primarily written in Haskell.
+Clone and Build libsodium
+
+
+RUN git clone https://github.com/input-output-hk/libsodium \
+    && cd libsodium \
+    && git checkout 66f017f1 \
+    && ./autogen.sh \
+    && ./configure \
+    && make \
+    && make install
+We're using git to clone the libsodium library from a specific repository, then change our working directory to the cloned directory using the cd command. We then checkout a specific commit, generate the build files, configure the build, and finally compile and install the library using make.
+Clone Cardano Node Repository
+
+
+RUN git clone https://github.com/input-output-hk/cardano-node.git \
+    && cd cardano-node \
+    && git fetch --all --recurse-submodules --tags \
+    && git checkout tags/YOUR_TAG_NAME
+Again, we're cloning a repository, this time for the cardano-node project. We fetch all updates, including submodules and tags, then checkout a specific tag. You should replace YOUR_TAG_NAME with the actual tag name or branch you want to build.
+Build Cardano Node and CLI
+
+
+
+RUN cd cardano-node \
+    && cabal configure -O0 -w ghc-8.10.4 \
+    && cabal build cardano-cli cardano-node
+We change the working directory to the cloned cardano-node directory. We then configure the build process with specific options using cabal, and proceed to build cardano-cli and cardano-node.
+Copy Executables to a Common Location
+
+
+
+RUN cp /path/to/your/build/cardano-cli /usr/local/bin \
+    && cp /path/to/your/build/cardano-node /usr/local/bin
+Finally, we copy the built cardano-cli and cardano-node executables to /usr/local/bin, a standard directory for user-installed executable programs. You should replace /path/to/your/build/ with the correct build directory where the compiled executables are located.
+This Dockerfile, when built with the docker build command, creates a Docker image that can be used as a containerized build environment for Cardano, making it easier to manage dependencies and build the project consistently across different machines.
